@@ -1,7 +1,6 @@
 package de.kokoio01.spawnglider.commands;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.ServerCommandSource;
@@ -18,29 +17,27 @@ public class ZoneManagementCommand {
 
     public static void register(SpawnElytraConfig configInstance) {
         config = configInstance;
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(literal("spawnglider")
-                    .then(literal("zone")
-                            .requires(source -> source.hasPermissionLevel(2)) // Requires OP level 2
-                            .then(literal("set")
-                                    .then(argument("minX", IntegerArgumentType.integer())
-                                            .then(argument("minY", IntegerArgumentType.integer())
-                                                    .then(argument("minZ", IntegerArgumentType.integer())
-                                                            .then(argument("maxX", IntegerArgumentType.integer())
-                                                                    .then(argument("maxY", IntegerArgumentType.integer())
-                                                                            .then(argument("maxZ", IntegerArgumentType.integer())
-                                                                                    .executes(ZoneManagementCommand::setZone))))))))
-                            .then(literal("remove")
-                                    .executes(ZoneManagementCommand::removeZone))
-                            .then(literal("list")
-                                    .executes(ZoneManagementCommand::listZones))
-                            .then(literal("info")
-                                    .executes(ZoneManagementCommand::zoneInfo))
-                            .then(literal("sethere")
-                                    .then(argument("radius", IntegerArgumentType.integer())
-                                            .executes(ZoneManagementCommand::setZoneHere)))
-                            .executes(ZoneManagementCommand::help)));
-        });
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(literal("spawnglider")
+                .then(literal("zone")
+                        .requires(source -> source.hasPermissionLevel(2))
+                        .then(literal("set")
+                                .then(argument("minX", IntegerArgumentType.integer())
+                                        .then(argument("minY", IntegerArgumentType.integer())
+                                                .then(argument("minZ", IntegerArgumentType.integer())
+                                                        .then(argument("maxX", IntegerArgumentType.integer())
+                                                                .then(argument("maxY", IntegerArgumentType.integer())
+                                                                        .then(argument("maxZ", IntegerArgumentType.integer())
+                                                                                .executes(ZoneManagementCommand::setZone))))))))
+                        .then(literal("remove")
+                                .executes(ZoneManagementCommand::removeZone))
+                        .then(literal("list")
+                                .executes(ZoneManagementCommand::listZones))
+                        .then(literal("info")
+                                .executes(ZoneManagementCommand::zoneInfo))
+                        .then(literal("sethere")
+                                .then(argument("radius", IntegerArgumentType.integer())
+                                        .executes(ZoneManagementCommand::setZoneHere)))
+                        .executes(ZoneManagementCommand::help))));
     }
 
     private static int setZone(CommandContext<ServerCommandSource> ctx) {
@@ -59,10 +56,8 @@ public class ZoneManagementCommand {
         int maxY = IntegerArgumentType.getInteger(ctx, "maxY");
         int maxZ = IntegerArgumentType.getInteger(ctx, "maxZ");
 
-        // Remove existing region for this dimension
         config.regions.removeIf(region -> region.dimension.equals(dimension));
 
-        // Create new region
         Region region = new Region();
         region.dimension = dimension;
         region.minX = minX;
@@ -171,14 +166,12 @@ public class ZoneManagementCommand {
         int y = (int) player.getY();
         int z = (int) player.getZ();
 
-        // Remove existing region for this dimension
         config.regions.removeIf(region -> region.dimension.equals(dimension));
 
-        // Create new region centered on player
         Region region = new Region();
         region.dimension = dimension;
         region.minX = x - radius;
-        region.minY = Math.max(y - radius, -64); // Don't go below world bottom
+        region.minY = Math.max(y - radius, -64);
         region.minZ = z - radius;
         region.maxX = x + radius;
         region.maxY = Math.min(y + radius, 320); // Don't go above world top

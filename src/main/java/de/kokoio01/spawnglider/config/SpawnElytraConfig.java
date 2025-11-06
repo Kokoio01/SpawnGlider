@@ -60,7 +60,6 @@ public class SpawnElytraConfig {
 				if (cfg != null && cfg.regions != null) return cfg;
 			} catch (IOException ignored) {}
 		}
-		// create empty config
 		SpawnElytraConfig def = new SpawnElytraConfig();
 		try {
 			Files.createDirectories(path.getParent());
@@ -80,20 +79,13 @@ public class SpawnElytraConfig {
 		return null;
 	}
 
-	public Region getFirstRegion() {
-		if (regions.isEmpty()) return null;
-		return regions.get(0);
-	}
-
-	public void save() {
+    public void save() {
 		Path path = getConfigPath();
 		try {
 			Files.createDirectories(path.getParent());
 			try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
 				GSON.toJson(this, writer);
 			}
-		} catch (IOException e) {
-			// Log error if needed
-		}
+		} catch (IOException ignored) {}
 	}
 }

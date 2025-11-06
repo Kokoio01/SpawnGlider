@@ -11,6 +11,7 @@ public class States {
 	public static Set<UUID> FlyingPlayers = new HashSet<>();
 	public static Map<UUID, Long> GracePeriodEndTimes = new HashMap<>();
 	public static Map<UUID, Integer> FlyingTicks = new HashMap<>();
+	public static Map<UUID, Double> PeakDownwardVy = new HashMap<>();
 
 	public static boolean isGlidingEnabled(UUID uuid) {
 		return GlidingEnabled.getOrDefault(uuid, true);
@@ -46,19 +47,27 @@ public class States {
 
 	public static boolean isInGracePeriod(UUID uuid) {
 		Long endTime = GracePeriodEndTimes.get(uuid);
-		if (endTime == null) {
-			return false;
-		}
-		return System.currentTimeMillis() < endTime;
+		return endTime != null && System.currentTimeMillis() < endTime;
 	}
 
 	public static void startGracePeriod(UUID uuid, long ticks) {
-		// Convert ticks to milliseconds (1 tick = 50ms)
 		long durationMs = ticks * 50;
 		GracePeriodEndTimes.put(uuid, System.currentTimeMillis() + durationMs);
 	}
 
-	public static void clearGracePeriod(UUID uuid) {
-		GracePeriodEndTimes.remove(uuid);
+    public static void resetPeakDownwardVy(UUID uuid) {
+		PeakDownwardVy.remove(uuid);
+	}
+
+	public static void updatePeakDownwardVy(UUID uuid, double vy) {
+		if (vy >= 0) return;
+		Double current = PeakDownwardVy.get(uuid);
+		if (current == null || vy < current) {
+			PeakDownwardVy.put(uuid, vy);
+		}
+	}
+
+	public static double getPeakDownwardVy(UUID uuid) {
+		return PeakDownwardVy.getOrDefault(uuid, 0.0);
 	}
 }
