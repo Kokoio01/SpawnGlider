@@ -12,6 +12,7 @@ public class States {
 	public static Map<UUID, Long> GracePeriodEndTimes = new HashMap<>();
 	public static Map<UUID, Integer> FlyingTicks = new HashMap<>();
 	public static Map<UUID, Double> PeakDownwardVy = new HashMap<>();
+	public static Map<UUID, Integer> RemainingBoosters = new HashMap<>();
 
 	public static boolean isGlidingEnabled(UUID uuid) {
 		return GlidingEnabled.getOrDefault(uuid, true);
@@ -69,5 +70,17 @@ public class States {
 
 	public static double getPeakDownwardVy(UUID uuid) {
 		return PeakDownwardVy.getOrDefault(uuid, 0.0);
+	}
+
+	public static int getRemainingBoosters(UUID uuid) {
+		return RemainingBoosters.getOrDefault(uuid, -1);
+	}
+
+	public static void setRemainingBoosters(UUID uuid, int value) {
+		RemainingBoosters.put(uuid, Math.max(0, value));
+	}
+
+	public static void resetRemainingBoosters(UUID uuid) {
+		RemainingBoosters.remove(uuid);
 	}
 }

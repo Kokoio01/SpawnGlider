@@ -40,7 +40,7 @@ public class RegionFlightController {
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (player.isCreative() || player.isSpectator()) continue;
-            if (!States.isGlidingEnabled(player.getUuid())) continue;
+            if (States.isGlidingEnabled(player.getUuid())) continue;
 
             double vy = player.getVelocity().y;
             boolean onSolidGround = isOnSolidGround(player) && vy <= 0.01;
@@ -62,6 +62,7 @@ public class RegionFlightController {
                 applyLandingDamping(player);
                 States.resetFlyingTicks(player.getUuid());
                 States.resetPeakDownwardVy(player.getUuid());
+                States.resetRemainingBoosters(player.getUuid());
             }
         }
     }
@@ -72,7 +73,7 @@ public class RegionFlightController {
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (player.isCreative() || player.isSpectator()) continue;
-            if (!States.isGlidingEnabled(player.getUuid())) continue;
+            if (States.isGlidingEnabled(player.getUuid())) continue;
 
             handlePlayerGliding(player);
         }

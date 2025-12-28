@@ -17,6 +17,8 @@ import java.util.List;
 
 public class SpawnElytraConfig {
 
+	private static SpawnElytraConfig INSTANCE;
+
 	public static class Region {
 		@SerializedName("dimension")
 		public String dimension;
@@ -45,20 +47,34 @@ public class SpawnElytraConfig {
 	@SerializedName("regions")
 	public List<Region> regions = new ArrayList<>();
 
+	@SerializedName("boosters")
+	public int Boosters;
+
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final String FILE_NAME = "spawnelytra.json";
+
+	private SpawnElytraConfig() {
+	}
+
+	public static SpawnElytraConfig getInstance() {
+		if (INSTANCE == null) {
+			INSTANCE = loadOrCreate();
+		}
+		return INSTANCE;
+	}
 
 	public static Path getConfigPath() {
 		return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
 	}
 
-	public static SpawnElytraConfig loadOrCreate() {
+	private static SpawnElytraConfig loadOrCreate() {
 		Path path = getConfigPath();
 		if (Files.exists(path)) {
 			try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
 				SpawnElytraConfig cfg = GSON.fromJson(reader, SpawnElytraConfig.class);
 				if (cfg != null && cfg.regions != null) return cfg;
-			} catch (IOException ignored) {}
+			} catch (IOException ignored) {
+			}
 		}
 		SpawnElytraConfig def = new SpawnElytraConfig();
 		try {
@@ -66,7 +82,8 @@ public class SpawnElytraConfig {
 			try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
 				GSON.toJson(def, writer);
 			}
-		} catch (IOException ignored) {}
+		} catch (IOException ignored) {
+		}
 		return def;
 	}
 
@@ -79,13 +96,22 @@ public class SpawnElytraConfig {
 		return null;
 	}
 
-    public void save() {
+	public int getBoosters() {
+		return Boosters;
+	}
+
+	public void setBoosters(int value) {
+		Boosters = value;
+	}
+
+	public void save() {
 		Path path = getConfigPath();
 		try {
 			Files.createDirectories(path.getParent());
 			try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
 				GSON.toJson(this, writer);
 			}
-		} catch (IOException ignored) {}
+		} catch (IOException ignored) {
+		}
 	}
 }

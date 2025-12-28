@@ -12,11 +12,9 @@ import static net.minecraft.server.command.CommandManager.literal;
 
 public class ToggleGliderCommand {
     public static void register() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(literal("spawnglider")
-                    .then(literal("toggle")
-                            .executes(ToggleGliderCommand::execute)));
-        });
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(literal("spawnglider")
+                .then(literal("toggle")
+                        .executes(ToggleGliderCommand::execute))));
     }
 
     private static int execute(CommandContext<ServerCommandSource> ctx) {
@@ -27,7 +25,7 @@ public class ToggleGliderCommand {
             return 0;
         }
 
-        boolean newValue = !States.isGlidingEnabled(player.getUuid());
+        boolean newValue = States.isGlidingEnabled(player.getUuid());
         States.setGlidingEnabled(player.getUuid(), newValue);
 
         String status = newValue ? "enabled" : "disabled";

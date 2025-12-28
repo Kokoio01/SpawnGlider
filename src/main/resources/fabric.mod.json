@@ -17,6 +17,9 @@
       "de.kokoio01.spawnglider.SpawnGlider"
     ]
   },
+  "mixins": [
+    "spawnglider.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=${loader_version}",
     "fabric": "*",
