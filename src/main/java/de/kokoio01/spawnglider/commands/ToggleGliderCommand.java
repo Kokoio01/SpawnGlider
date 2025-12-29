@@ -25,7 +25,7 @@ public class ToggleGliderCommand {
             return 0;
         }
 
-        boolean newValue = States.isGlidingEnabled(player.getUuid());
+        boolean newValue = States.isGlidingDisabled(player.getUuid());
         States.setGlidingEnabled(player.getUuid(), newValue);
 
         String status = newValue ? "enabled" : "disabled";

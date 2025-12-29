@@ -17,8 +17,9 @@ public class BoostManagementCommand {
     public static void register(SpawnElytraConfig configInstance) {
         config = configInstance;
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(literal("spawnglider")
+                .executes(BoostManagementCommand::help)
+                .requires(source -> source.hasPermissionLevel(2))
                 .then(literal("boosters")
-                        .requires(source -> source.hasPermissionLevel(2))
                         .then(argument("amount", IntegerArgumentType.integer())
                             .executes(BoostManagementCommand::setBoosters)))));
     }
@@ -31,6 +32,13 @@ public class BoostManagementCommand {
 
         ctx.getSource().sendFeedback(() -> Text.literal("Set allowed Boosters to " + amount)
                 .formatted(Formatting.GREEN), true);
+
+        return 1;
+    }
+
+    private static int help(CommandContext<ServerCommandSource> ctx) {
+        ctx.getSource().sendFeedback(() -> Text.literal("Usage: /spawnglieder boosters <amount of boosts>")
+                .formatted(Formatting.WHITE), false);
 
         return 1;
     }

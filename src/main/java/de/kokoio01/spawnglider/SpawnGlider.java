@@ -14,6 +14,5 @@ public class SpawnGlider implements ModInitializer {
         ZoneManagementCommand.register(CONFIG);
         BoostManagementCommand.register(CONFIG);
         new RegionFlightController(CONFIG).register();
-        FallDamageProtection.register();
     }
 }

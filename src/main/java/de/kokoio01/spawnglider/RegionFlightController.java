@@ -3,8 +3,12 @@ package de.kokoio01.spawnglider;
 import de.kokoio01.spawnglider.config.SpawnElytraConfig;
 import de.kokoio01.spawnglider.config.SpawnElytraConfig.Region;
 import de.kokoio01.spawnglider.util.States;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
@@ -12,35 +16,48 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShape;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public class RegionFlightController {
+
+    public static Map<UUID, Long> GracePeriodEndTimes = new HashMap<>();
+    public static Map<UUID, Integer> FlyingTicks = new HashMap<>();
+    public static Map<UUID, Double> PeakDownwardVy = new HashMap<>();
+
     private static final int MIN_GRACE_TICKS = 5;
     private static final int MAX_GRACE_TICKS = 15;
     private static final int MIN_FLYING_TICKS_FOR_GRACE = 2 * 20;
+
     private static final double MIN_SPEED_FOR_GRACE = -0.35;
     private static final double SPEED_FOR_MAX_GRACE = -1.60;
+
     private static final int MIN_TICKS_BEFORE_GLIDE_TRIGGER = 12;
     private static final double MIN_DOWNWARD_SPEED_FOR_GLIDE = -0.35;
+
     private static final double LANDING_HORIZONTAL_DAMP = 0.2;
     private static final double LANDING_MIN_DOWNWARD_NUDGE = -0.08;
 
-    private final SpawnElytraConfig config;
+    private static SpawnElytraConfig config = SpawnElytraConfig.getInstance();
 
-    public RegionFlightController(SpawnElytraConfig config) {
-        this.config = config;
+    public RegionFlightController(SpawnElytraConfig configInstance) {
+        config = configInstance;
     }
 
     public void register() {
         ServerTickEvents.START_SERVER_TICK.register(this::onStartTick);
         ServerTickEvents.END_SERVER_TICK.register(this::onEndTick);
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register(this::onDamage);
     }
 
     private void onStartTick(MinecraftServer server) {
         long now = System.currentTimeMillis();
-        States.GracePeriodEndTimes.entrySet().removeIf(entry -> now >= entry.getValue());
+        GracePeriodEndTimes.entrySet().removeIf(entry -> now >= entry.getValue());
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (player.isCreative() || player.isSpectator()) continue;
-            if (States.isGlidingEnabled(player.getUuid())) continue;
+            if (States.isGlidingDisabled(player.getUuid())) continue;
 
             double vy = player.getVelocity().y;
             boolean onSolidGround = isOnSolidGround(player) && vy <= 0.01;
@@ -51,17 +68,18 @@ public class RegionFlightController {
             }
 
             if (States.isFlying(player.getUuid()) && onSolidGround) {
-                int flownTicks = States.getFlyingTicks(player.getUuid());
+                int flownTicks = FlyingTicks.getOrDefault(player.getUuid(), 0);
                 States.setFlying(player.getUuid(), false);
 
                 if (flownTicks >= MIN_FLYING_TICKS_FOR_GRACE) {
-                    double peakVy = States.getPeakDownwardVy(player.getUuid());
+                    double peakVy = PeakDownwardVy.getOrDefault(player.getUuid(), 0.0);
                     int graceTicks = computeGraceTicksFromSpeed(peakVy);
-                    States.startGracePeriod(player.getUuid(), graceTicks);
+                    startGracePeriod(player.getUuid(), graceTicks);
                 }
+
                 applyLandingDamping(player);
-                States.resetFlyingTicks(player.getUuid());
-                States.resetPeakDownwardVy(player.getUuid());
+                FlyingTicks.remove(player.getUuid());
+                PeakDownwardVy.remove(player.getUuid());
                 States.resetRemainingBoosters(player.getUuid());
             }
         }
@@ -69,14 +87,20 @@ public class RegionFlightController {
 
     private void onEndTick(MinecraftServer server) {
         long now = System.currentTimeMillis();
-        States.GracePeriodEndTimes.entrySet().removeIf(entry -> now >= entry.getValue());
+        GracePeriodEndTimes.entrySet().removeIf(entry -> now >= entry.getValue());
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (player.isCreative() || player.isSpectator()) continue;
-            if (States.isGlidingEnabled(player.getUuid())) continue;
+            if (States.isGlidingDisabled(player.getUuid())) continue;
 
             handlePlayerGliding(player);
         }
+    }
+
+    private boolean onDamage(LivingEntity entity, DamageSource source, float amount) {
+        if (!(entity instanceof ServerPlayerEntity player)) return true;
+        if (!source.isOf(DamageTypes.FALL)) return true;
+        return !States.isFlying(player.getUuid()) && !isInGracePeriod(player.getUuid());
     }
 
     private void handlePlayerGliding(ServerPlayerEntity player) {
@@ -96,31 +120,54 @@ public class RegionFlightController {
         }
 
         if ((insideRegion || States.isFlying(player.getUuid())) && !onSolidGround) {
-            States.incrementFlyingTicks(player.getUuid());
-            States.updatePeakDownwardVy(player.getUuid(), vy);
 
-            if (!gliding && fallingFast && States.getFlyingTicks(player.getUuid()) >= MIN_TICKS_BEFORE_GLIDE_TRIGGER) {
+            FlyingTicks.put(
+                    player.getUuid(),
+                    FlyingTicks.getOrDefault(player.getUuid(), 0) + 1
+            );
+
+            PeakDownwardVy.put(
+                    player.getUuid(),
+                    Math.min(PeakDownwardVy.getOrDefault(player.getUuid(), 0.0), vy)
+            );
+
+            if (!gliding
+                    && fallingFast
+                    && FlyingTicks.get(player.getUuid()) >= MIN_TICKS_BEFORE_GLIDE_TRIGGER) {
                 startGliding(player);
             }
 
             if (!States.isFlying(player.getUuid())) {
-                States.resetPeakDownwardVy(player.getUuid());
                 States.setFlying(player.getUuid(), true);
             }
             return;
         }
 
-        if (States.isInGracePeriod(player.getUuid()) && !onSolidGround && !gliding) {
-            States.resetFlyingTicks(player.getUuid());
+        if (isInGracePeriod(player.getUuid()) && !onSolidGround && !gliding) {
+            FlyingTicks.remove(player.getUuid());
             startGliding(player);
         }
     }
 
+    public static boolean isInGracePeriod(UUID uuid) {
+        Long endTime = GracePeriodEndTimes.get(uuid);
+        return endTime != null && System.currentTimeMillis() < endTime;
+    }
+
+    public static void startGracePeriod(UUID uuid, long ticks) {
+        GracePeriodEndTimes.put(uuid, System.currentTimeMillis() + ticks * 50L);
+    }
+
     private int computeGraceTicksFromSpeed(double peakVy) {
         if (peakVy >= 0) return MIN_GRACE_TICKS;
+
         double clamped = Math.max(SPEED_FOR_MAX_GRACE, Math.min(MIN_SPEED_FOR_GRACE, peakVy));
         double t = (clamped - MIN_SPEED_FOR_GRACE) / (SPEED_FOR_MAX_GRACE - MIN_SPEED_FOR_GRACE);
-        int grace = (int) Math.round(MIN_GRACE_TICKS + t * (MAX_GRACE_TICKS - MIN_GRACE_TICKS));
+
+        int grace = (int) Math.round(
+                MIN_GRACE_TICKS + t * (MAX_GRACE_TICKS - MIN_GRACE_TICKS)
+        );
+
         return Math.max(MIN_GRACE_TICKS, Math.min(MAX_GRACE_TICKS, grace));
     }
 
@@ -131,20 +178,23 @@ public class RegionFlightController {
 
     private void applyLandingDamping(ServerPlayerEntity player) {
         if (player.isTouchingWater() || player.isInLava()) return;
+
         Vec3d v = player.getVelocity();
-        double vx = v.x * LANDING_HORIZONTAL_DAMP;
-        double vz = v.z * LANDING_HORIZONTAL_DAMP;
-        double vy = Math.min(v.y, LANDING_MIN_DOWNWARD_NUDGE);
-        player.setVelocity(vx, vy, vz);
+        player.setVelocity(
+                v.x * LANDING_HORIZONTAL_DAMP,
+                Math.min(v.y, LANDING_MIN_DOWNWARD_NUDGE),
+                v.z * LANDING_HORIZONTAL_DAMP
+        );
         player.velocityDirty = true;
     }
 
     private boolean isOnSolidGround(ServerPlayerEntity player) {
         if (!player.isOnGround()) return false;
+
         BlockPos below = player.getBlockPos().down();
-        var world = player.getEntityWorld();
-        BlockState state = world.getBlockState(below);
-        VoxelShape shape = state.getCollisionShape(world, below);
+        BlockState state = player.getEntityWorld().getBlockState(below);
+        VoxelShape shape = state.getCollisionShape(player.getEntityWorld(), below);
+
         return !shape.isEmpty();
     }
 }

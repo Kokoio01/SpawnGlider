@@ -3,10 +3,10 @@
   "id": "spawnglider",
   "version": "${version}",
   "name": "Spawn Glider",
-  "description": "",
+  "description": "Spawn Glider is a Mod for Minecraft Fabric that allows server owners to specify regions where players can automatically glide with elytra.",
   "authors": ["kokoio01"],
   "contact": {},
-  "license": "All-Rights-Reserved",
+  "license": "LGPL-3.0-only",
   "icon": "icon.png",
   "environment": "server",
   "entrypoints": {
